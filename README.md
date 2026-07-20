@@ -48,7 +48,7 @@ The agent will scaffold the `.loop` directory, present a goal, write an executio
 
 - `plugin.json`: Metadata for the Gemini plugin interface.
 - `skills/loop/SKILL.md`: The core LoopOS kernel prompt instructions — the 6-step protocol (Bootstrap → Scope → Execute → Verify → Goal Complete → Finalize).
-- `AGENTS.MD`: Mandatory architectural boundaries and native loop behavior directives.
+- `AGENTS.md`: Mandatory architectural boundaries and native loop behavior directives.
 - `LOOP.md`: The **Autonomous Execution Manifest** — the definitive contract governing pipeline phases, state protocol, verification gates, quality thresholds, error handling, guardrails, and multi-goal orchestration.
 - `install.js`: The universal installer script.
 - `.loop/` (per-project, created at runtime):

@@ -1,4 +1,4 @@
-# ?? AGENTS.MD: Core Directives for Agentic Workflows
+# AGENTS.md: Core Directives for Agentic Workflows
 
 **ATTENTION ALL AI AGENTS & LLM CONTRIBUTORS:**
 This document is the absolute source of truth governing your behavior, architectural compliance, and coding standards within the **LoopOS** project. You must ingest and adhere to these rules on every interaction.

@@ -35,7 +35,7 @@ Before formulating any goal, understand what you're working with:
 1. **Scan the workspace**: List the root directory. Identify existing source files, config files (`package.json`, `pyproject.toml`, `Cargo.toml`, etc.), test infrastructure, and documentation.
 2. **Detect the tech stack**: Infer languages, frameworks, build tools, and test runners from project files. Record your findings.
 3. **Read existing patterns**: If source code exists, read key files to understand naming conventions, architectural patterns (MVC, component-based, etc.), and code style. This prevents introducing conflicting patterns.
-4. **Read `AGENTS.MD`**: If present, ingest all architectural boundaries, coding standards, and behavioral constraints. These are non-negotiable.
+4. **Read `AGENTS.md`**: If present, ingest all architectural boundaries, coding standards, and behavioral constraints. These are non-negotiable.
 5. **Check for prior learnings**: If `.loop/LEARNINGS.md` has entries from prior goals, read them. These inform your approach.
 
 > **Brownfield vs. Greenfield**: If the workspace has existing code, you are in brownfield mode — respect existing patterns, don't reinvent. If the workspace is empty, you are in greenfield mode — establish patterns deliberately and document them in `DECISIONS.md`.
@@ -100,7 +100,7 @@ This is the core loop. Execute with precision and discipline.
 #### 4a. Pre-Execution Setup
 
 1. Read `LOOP.md` for execution parameters, pipeline configuration, and guardrails.
-2. Read `AGENTS.MD` for coding style, architectural boundaries, and project-specific rules.
+2. Read `AGENTS.md` for coding style, architectural boundaries, and project-specific rules.
 3. Transition the current goal's status to `🟡 In Progress` (mutate ONLY the status line).
 
 #### 4b. Task Execution Cycle

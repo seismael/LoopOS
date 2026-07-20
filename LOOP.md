@@ -86,7 +86,7 @@ Before marking any plan task `[x]`, the agent MUST pass at least one verificatio
 
 These are non-negotiable standards for every deliverable:
 
-- **Pattern Conformance**: Read `AGENTS.MD` before writing any code. Follow the project's established patterns, naming conventions, and architectural boundaries.
+- **Pattern Conformance**: Read `AGENTS.md` before writing any code. Follow the project's established patterns, naming conventions, and architectural boundaries.
 - **No Placeholders**: Every deliverable must be production-grade. No `TODO` stubs, no lorem ipsum, no mock data unless the goal explicitly requests prototyping.
 - **Documentation**: All non-trivial functions, classes, and modules must have docstrings/JSDoc/TSDoc appropriate to the project's language.
 - **Design Bar**: If the goal involves UI, the deliverable must meet the project's stated design standards. Generic or "basic" output is a failure state.

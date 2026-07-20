@@ -9,7 +9,7 @@ The architecture of LoopOS is built on four foundational pillars:
 - **Zero Middleware**: The AI Agent *is* the operating system. LoopOS operates natively using the agent's built-in capabilities (file I/O, terminal commands, browser preview). There are no external MCP (Model Context Protocol) servers, background daemons, or polling loops.
 - **VFS as State**: All operational memory, context, and execution state persist exclusively in Markdown files within the `.loop/` directory. If a state is not in a `.loop/` file, it does not exist.
 - **Deterministic Execution**: The agent follows a rigid `Pick → Execute → Verify → Mark Done → Repeat` cycle defined by explicit rules, preventing infinite loops and hallucinated workflows.
-- **Instruction as Code (Markdown-Driven)**: Configuration, guardrails, and behavioral rules are defined in human-readable Markdown (`LOOP.md`, `AGENTS.MD`), ensuring the contract is equally legible to the LLM and the human supervisor.
+- **Instruction as Code (Markdown-Driven)**: Configuration, guardrails, and behavioral rules are defined in human-readable Markdown (`LOOP.md`, `AGENTS.md`), ensuring the contract is equally legible to the LLM and the human supervisor.
 
 ## 2. System Components
 

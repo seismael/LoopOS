@@ -35,20 +35,22 @@ const skillBody = skillContent.split("---")[2].trim();
 
 const claudeHeader = "\n\n## 5. NATIVE /loop PROTOCOL\n";
 
-if (fs.existsSync(claudeConfigPath)) {
-  let claudeContent = fs.readFileSync(claudeConfigPath, "utf8");
-  if (!claudeContent.includes("NATIVE /loop PROTOCOL")) {
-    fs.appendFileSync(claudeConfigPath, claudeHeader + skillBody);
-    console.log("✔ Successfully injected /loop protocol into CLAUDE.md (Claude & OpenCode).");
-  } else {
-    // Basic replacement if it already exists
-    const beforeLoop = claudeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
-    fs.writeFileSync(claudeConfigPath, beforeLoop + claudeHeader + skillBody);
-    console.log("✔ Successfully updated /loop protocol in CLAUDE.md.");
-  }
-} else {
-  console.log("�  CLAUDE.md not found, skipping Claude/OpenCode integration.");
+if (!fs.existsSync(path.dirname(claudeConfigPath))) {
+  fs.mkdirSync(path.dirname(claudeConfigPath), { recursive: true });
 }
+if (!fs.existsSync(claudeConfigPath)) {
+  fs.writeFileSync(claudeConfigPath, "");
+}
+let claudeContent = fs.readFileSync(claudeConfigPath, "utf8");
+if (!claudeContent.includes("NATIVE /loop PROTOCOL")) {
+  fs.appendFileSync(claudeConfigPath, claudeHeader + skillBody);
+  console.log("✅ Successfully injected /loop protocol into CLAUDE.md (Claude & OpenCode).");
+} else {
+  const beforeLoop = claudeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
+  fs.writeFileSync(claudeConfigPath, beforeLoop + claudeHeader + skillBody);
+  console.log("✅ Successfully updated /loop protocol in CLAUDE.md.");
+}
+
 
 console.log("Installation Complete! You can now use `/loop` across all agents.");
 
