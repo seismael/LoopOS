@@ -21,10 +21,14 @@ Check if the `.loop/` directory exists in the workspace. If not, scaffold it:
 2. If a root-level `LOOP.md` exists, copy it into `.loop/LOOP.md` as the runtime instance. Otherwise, create a default `.loop/LOOP.md` with project name, stack, and sensible defaults.
 3. Scaffold all state files with headers:
    - `.loop/GOALS.md` — Goal ledger (immutable-structure entries)
-   - `.loop/PLANS.md` — Execution checklist
+   - `.loop/WORKFLOWS.md` — Workflow ledger (Ordered Stages per Goal)
+   - `.loop/PLANS.md` — Execution checklist (Structured Task Objects, JIT per Stage)
+   - `.loop/VERIFICATIONS.md` — Verification ledger (Proof of testing)
    - `.loop/CHANGELOG.md` — Delivery record
-   - `.loop/DECISIONS.md` — Architectural decision records
+   - `.loop/DECISIONS.md` — Architectural decision records (ADRs)
    - `.loop/LEARNINGS.md` — Codebase gotchas and discovered patterns
+4. Scaffold the `.loop/capabilities/` directory. If `.loop/capabilities/workflow-templates.md` does not exist, create it and populate it with "Enhanced Defaults" (Baseline templates for 'Complex Feature', 'Bug Fix', and 'Refactoring').
+5. If a `.gitignore` file exists in the workspace root, append `.loop/` to it (unless already present) to prevent committing local state.
 
 If `.loop/` already exists (loop resumption), read all state files to reconstruct context. Identify the current goal (`🟡 In Progress`) and find the first uncompleted `[ ]` task. Resume from that exact point — do not re-execute completed tasks.
 
@@ -37,6 +41,7 @@ Before formulating any goal, understand what you're working with:
 3. **Read existing patterns**: If source code exists, read key files to understand naming conventions, architectural patterns (MVC, component-based, etc.), and code style. This prevents introducing conflicting patterns.
 4. **Read `AGENTS.md`**: If present, ingest all architectural boundaries, coding standards, and behavioral constraints. These are non-negotiable.
 5. **Check for prior learnings**: If `.loop/LEARNINGS.md` has entries from prior goals, read them. These inform your approach.
+6. **Load Capabilities**: Check `.loop/capabilities/` for any markdown tool registries. Ingest permitted commands for specialized workflows.
 
 > **Brownfield vs. Greenfield**: If the workspace has existing code, you are in brownfield mode — respect existing patterns, don't reinvent. If the workspace is empty, you are in greenfield mode — establish patterns deliberately and document them in `DECISIONS.md`.
 
@@ -72,14 +77,21 @@ Write the goal into `.loop/GOALS.md` using the immutable template:
 - {Any relevant constraints, dependencies, or non-goals}
 ```
 
-#### 3d. Plan Synthesis
+#### 3d. Workflow Orchestration (Dynamic Pipelines)
 
-Decompose the goal into an ordered execution plan in `.loop/PLANS.md`:
+Decouple "What" (Goal) from "How" (Workflow). Architect a high-level pipeline for the goal in `.loop/WORKFLOWS.md`:
 
-1. **Group by phase**: Organize tasks into logical phases (e.g., Foundation, Core Logic, UI, Integration, Polish). Each phase should be independently verifiable.
-2. **Order by dependency**: Tasks within a phase are ordered so that each task builds on the previous. No forward dependencies.
-3. **Right-size tasks**: Each task should be completable in one focused execution step (one file or one tightly-coupled set of changes). If a task feels like it needs more than ~200 lines of code, decompose it.
-4. **Embed verification hints**: Where possible, note what verification gate applies to each task (e.g., `P1.1 — Create test file for parser [verify: test runs]`).
+1. **Analyze Complexity**: Does this goal require a design phase? Prototyping? A security audit?
+2. **Consult Templates**: Read `.loop/capabilities/workflow-templates.md`. Select or adapt the most appropriate baseline template for the goal.
+3. **Generate Stages**: Write a logical sequence of Stages into `WORKFLOWS.md`.
+   ```markdown
+   ## W-{GoalID}: {Title}
+   **Type**: {Feature | Bug Fix | Refactor}
+   **Stages**:
+   1. [ ] Stage 1: {Description}
+   2. [ ] Stage 2: {Description}
+   ```
+3. **JIT Planning Reconnaissance**: Do NOT plan the entire goal upfront. Leave `PLANS.md` empty until execution begins for Stage 1. Before synthesizing tasks for a Stage, you MUST run terminal commands (e.g., `ls`, RipGrep) to verify exact file paths and code structures to prevent path hallucination.
 
 #### Goal Lifecycle (Immutable Structure)
 
@@ -103,25 +115,26 @@ This is the core loop. Execute with precision and discipline.
 2. Read `AGENTS.md` for coding style, architectural boundaries, and project-specific rules.
 3. Transition the current goal's status to `🟡 In Progress` (mutate ONLY the status line).
 
-#### 4b. Task Execution Cycle
+#### 4b. Task Execution Cycle (JIT Stage Loop)
 
-Enter the continuous execution loop:
+Enter the continuous execution loop. This operates on a two-tiered state machine:
 
 ```
-WHILE uncompleted tasks exist in PLANS.md:
-  1. READ  → Read PLANS.md. Pick the first uncompleted [ ] task.
-  2. MARK  → Mark the task as in-progress [/] using replace_file_content.
-  3. THINK → Before writing code, reason about the approach:
-             - What files need to change?
-             - What patterns does the existing codebase use?
-             - What could go wrong?
-             - What's the verification strategy for this task?
-  4. ACT   → Execute the task using your native tools.
-  5. LEARN → Record any discoveries:
-             - Codebase gotchas → LEARNINGS.md
-             - Design choices → DECISIONS.md
-  6. VERIFY → Run the appropriate verification gate (see §5).
-  7. DONE  → Mark the task [x] and log the deliverable in CHANGELOG.md.
+WHILE uncompleted Stages exist in WORKFLOWS.md:
+  1. STAGE PLAN → Read the first uncompleted [ ] Stage. Run reconnaissance on required files, then synthesize granular Task Objects into PLANS.md.
+  
+  WHILE uncompleted tasks exist in PLANS.md:
+    2. READ       → Pick the first uncompleted [ ] task.
+    3. MARK       → Mark the task as in-progress [/].
+    4. CHECKPOINT → Run `git add .` and `git commit -m "LoopOS Checkpoint: Pre-{TaskID}"`.
+    5. THINK      → Review Target Files and Verification Gate.
+    6. ACT        → Execute the task natively.
+    7. LEARN      → Log Gotchas in LEARNINGS.md, Decisions in DECISIONS.md.
+    8. VERIFY     → Run Verification Command.
+    9. PROVE      → Append output to VERIFICATIONS.md.
+    10. DONE      → Mark task [x] in PLANS.md and log deliverable in CHANGELOG.md.
+
+  11. STAGE DONE → Mark the Stage [x] in WORKFLOWS.md. (Loop restarts for next Stage).
 ```
 
 #### 4c. Adaptive Execution Intelligence
@@ -129,17 +142,19 @@ WHILE uncompleted tasks exist in PLANS.md:
 Apply these heuristics during execution:
 
 - **Read before write**: Before modifying any existing file, read it first. Understand the current structure, patterns, and conventions. Never write blind.
-- **Minimal diff principle**: Change only what is necessary. Do not reformat, refactor, or "improve" code outside the scope of the current task unless the goal explicitly requires it.
-- **Test-first when possible**: If the project has test infrastructure, write the failing test before the implementation. If no test infra exists and the goal warrants it, set it up as the first phase.
+- **Strict TDD for Logic**: For Feature or Bug Fix workflows, you MUST write the failing test in `PLANS.md` as the first task of the implementation stage. Do not write implementation code before the test exists. If no test infra exists, set it up.
+- **Minimal diff principle**: Change only what is necessary. Do not reformat, refactor, or "improve" code outside the scope of the current task.
 - **Compound errors**: If a task fails verification and the fix introduces a second failure, stop and re-assess the approach. Do not stack patches — backtrack and rethink.
 - **Progressive complexity**: Build in layers. Get the simplest version working first, then add complexity. Each layer should pass verification independently.
 
-#### 4d. Context Management
+#### 4d. Context & Resource Management (Strict Limits)
 
-Long-running loops can saturate your context window. Manage it proactively:
+Enterprise codebases are massive. You MUST aggressively manage your context window and execution resources:
 
+- **Mandate RipGrep**: Do NOT use `cat` or `Get-Content` on massive files or logs. Always use targeted RipGrep (`rg`) or file-viewing tools with line limits.
+- **Aggressive Pagination**: When running shell commands that produce massive output (e.g., `git log`, `npm install`), you MUST limit the output (e.g., `git log -n 5`) or pipe to a bounded file.
 - **Offload completed work**: After completing a phase, summarize it in `CHANGELOG.md`. You don't need to hold all implementation details in memory — the files themselves are the source of truth.
-- **Subagent delegation**: For isolated, complex tasks (e.g., writing a large component, running a test suite), spawn a subagent with bounded context. Pass only the relevant files and specifications. The parent agent retains orchestration and state management — subagents never write to `.loop/` files directly.
+- **Subagent delegation**: For isolated tasks exceeding ~200 lines of code or complex test suite runs, spawn a subagent with bounded context. The parent agent retains orchestration and state management — subagents never write to `.loop/` files directly.
 - **Re-read when uncertain**: If you're unsure about a pattern or convention, re-read the relevant source file. Don't guess from memory.
 
 ### 5. Verification
@@ -166,6 +181,8 @@ When verification fails:
 2. **Fix**: Apply the minimal fix to address the root cause.
 3. **Re-verify**: Run the same verification gate again. The fix must pass the same gate that originally failed.
 4. **Escalate if stuck**: If 3 fix attempts fail for the same task, do NOT continue patching. Instead:
+   - **Evaluate Frustration**: Is the failure due to a strict rule (like a linter) blocking core logic? If yes, append a temporary exception to `.loop/LOOP.md` and log it in `DECISIONS.md` to maintain momentum.
+   - If not a strict rule constraint, run `git reset --hard` to rollback the workspace to the pristine checkpoint.
    - Record the failure in `LEARNINGS.md`.
    - Mark the goal as `🔴 Blocked` with a description of the failure.
    - Request user input.
@@ -174,9 +191,9 @@ When verification fails:
 
 ### 6. Goal Completion
 
-When all plan tasks for the current goal are `[x]`:
+When all Stages for the current goal in `WORKFLOWS.md` are `[x]`:
 
-1. **Acceptance audit**: Re-read the goal's "Done When" criteria in `GOALS.md`. Verify each criterion is satisfied. If any criterion is unmet, identify the gap and add a remediation task to `PLANS.md`.
+1. **Acceptance audit**: Re-read the goal's "Done When" criteria in `GOALS.md`. Verify each criterion is satisfied. If any criterion is unmet, identify the gap and add a remediation Stage to `WORKFLOWS.md`.
 2. **Status transition**: Transition the goal's status to `✅ Complete` (mutate ONLY the status line — preserve all goal details).
 3. **Changelog entry**: Write a summary entry to `.loop/CHANGELOG.md` covering what was delivered.
 4. **Next goal**: If more goals remain with status `🔵 Defined`, proceed to the next goal (return to Step 3: Goal Formulation for that goal's plan synthesis, then Step 4 for execution).
@@ -185,7 +202,7 @@ When all plan tasks for the current goal are `[x]`:
 
 When ALL goals in `.loop/GOALS.md` reach `✅ Complete`:
 
-1. **Full audit**: Verify every task in `PLANS.md` is `[x]`. Verify every goal's "Done When" criteria are satisfied.
+1. **Full audit**: Verify every Stage in `WORKFLOWS.md` is `[x]`. Verify every goal's "Done When" criteria are satisfied.
 2. **Final changelog**: Write a comprehensive summary entry to `CHANGELOG.md` covering all goals and deliverables.
 3. **Learnings capture**: Record any final codebase insights, patterns discovered, or recommendations for future work in `LEARNINGS.md`.
 4. **Report to user**: Declare the loop complete with a concise summary of:

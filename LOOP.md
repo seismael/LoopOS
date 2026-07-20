@@ -9,45 +9,55 @@
 - **No External Middleware**: No daemons, no MCP servers, no background processes. LoopOS is pure prompt-driven architecture.
 - **State Persistence**: All operational state persists exclusively in `.loop/` VFS files. If it's not in a file, it doesn't exist.
 
-## 2. Execution Pipeline
+## 2. Execution Pipeline (State Machine)
 
-Default 5-phase pipeline per goal. Phases may be overridden or extended by the goal's own constraints in `GOALS.md`.
+The execution pipeline is a strict state machine. You must not transition to the next phase until all Exit Criteria of the current phase are met.
 
-| Phase | Name | Deliverable | State File |
-|:---:|:---|:---|:---|
-| 1 | **Scoping** | Decompose goal into deterministic "Done When" criteria; write execution checklist | `GOALS.md`, `PLANS.md` |
-| 2 | **Design & Setup** | Scaffold project structure, record architectural decisions | `DECISIONS.md` |
-| 3 | **Test-Driven Implementation** | Write failing tests first, then implementation code to pass them | `PLANS.md` (task progression) |
-| 4 | **Refactor & Document** | Clean up code, add documentation, record codebase gotchas | `LEARNINGS.md` |
-| 5 | **Verification** | Run verification gates, confirm all acceptance criteria are met | `CHANGELOG.md` |
+### Phase 1: Intent Scoping
+**Objective**: Translate intent into a deterministic Goal.
+**Entry Criteria**: New Goal required.
+**Exit Criteria**: `GOALS.md` contains deterministic "Done When" criteria with status `🔵 Defined`.
 
-> **Pipeline Override**: If the goal explicitly specifies a different workflow (e.g., research-only, UI-only, refactor-only), adapt the pipeline accordingly. The 5-phase default applies when no override is specified.
+### Phase 2: Workflow Orchestration
+**Objective**: Dynamically design the high-level pipeline for the goal.
+**Entry Criteria**: Goal is `🔵 Defined`.
+**Exit Criteria**: `WORKFLOWS.md` contains an ordered list of Stages required to complete the Goal.
 
-## 3. State Protocol
+### Phase 3: Stage Execution (JIT Planning & Loop)
+**Objective**: Synthesize granular tasks for the *current* Stage, then iteratively execute and verify them.
+**Entry Criteria**: Uncompleted Stages exist in `WORKFLOWS.md`.
+**Exit Criteria**: 
+- `PLANS.md` tasks for the current Stage are all `[x]`.
+- Every `[x]` task has a verification record in `VERIFICATIONS.md`.
+- Current Stage in `WORKFLOWS.md` is marked `[x]`. (Loop repeats for next Stage).
 
-The `.loop/` directory is the single source of truth. Each file has a strict purpose:
+### Phase 4: Finalization
+**Objective**: Clean up and report.
+**Entry Criteria**: All Stages in `WORKFLOWS.md` are marked `[x]`.
+**Exit Criteria**:
+- Goal status in `GOALS.md` updated to `✅ Complete`.
+- `CHANGELOG.md` updated with deliverables.
+- `LEARNINGS.md` updated with any codebase gotchas.
+
+## 3. State Protocol & Structured Objects
+
+The `.loop/` directory is the single source of truth. Each file has a strict purpose and format.
 
 | File | Role | Mutation Rules |
 |:---|:---|:---|
-| `GOALS.md` | **Goal Ledger** — Immutable-structure entries tracking what must be achieved | Status-only field mutations. Never truncate, collapse, or rewrite goal bodies. |
-| `PLANS.md` | **Execution Checklist** — Ordered task breakdown per phase | `[ ]` → `[/]` → `[x]` transitions only. Append new phases; never delete completed ones. |
-| `CHANGELOG.md` | **Delivery Record** — Chronological log of what was built and when | Append-only. One entry per completed task or milestone. |
-| `DECISIONS.md` | **Decision Records** — Architectural choices with rationale | Append-only. Format: `**D{N}**: {Decision} — {Rationale}.` |
-| `LEARNINGS.md` | **Gotchas & Patterns** — Discovered pitfalls, workarounds, and useful patterns | Append-only. These inform future goals in the same project. |
-| `LOOP.md` | **Runtime Config** — Per-project execution parameters (copied from template) | Mutable. Agent may adjust parameters mid-loop if justified in DECISIONS.md. |
+| `GOALS.md` | **Goal Ledger** | Status-only field mutations. Never rewrite goal bodies. |
+| `WORKFLOWS.md` | **Workflow Ledger** | Contains ordered Stages for active Goals. |
+| `PLANS.md` | **Execution Checklist** | Contains Structured Task Objects, generated **JIT** per Stage. |
+| `VERIFICATIONS.md` | **Verification Ledger** | Append-only. Contains Proof of passing gates. |
+| `CHANGELOG.md` | **Delivery Record** | Append-only log of milestones. |
+| `DECISIONS.md` | **Decision Records** | Append-only. Contains Structured ADR Objects. |
+| `LEARNINGS.md` | **Gotchas & Patterns** | Append-only insights. |
+| `LOOP.md` | **Runtime Config** | Immutable during a loop (unless Rule Relaxation triggered). |
+| `capabilities/`| **Tool Registry** | Markdown files detailing permitted native tools and commands. |
 
-### Goal Lifecycle (Immutable Structure)
+### 3a. Goal Object (`GOALS.md`)
+**Rules**: Append-only, structure-preserving. Status transitions: `🔵 Defined` → `🟡 In Progress` → `✅ Complete` (or `🔴 Blocked`).
 
-Goals are **append-only, structure-preserving ledger entries**.
-
-**Status transitions**: `🔵 Defined` → `🟡 In Progress` → `✅ Complete` (or `🔴 Blocked`).
-
-**Rules:**
-1. When a goal is first written, it MUST include: title, status, "Done When" criteria, and any relevant constraints or acceptance criteria.
-2. When transitioning status, you MUST use `replace_file_content` to change **ONLY** the `**Status**:` line. Never rewrite, truncate, or collapse the goal body.
-3. Completed goals retain their full structure permanently — they serve as the historical record of what was defined and achieved.
-
-**Goal Template:**
 ```markdown
 ## G{N}: {Title}
 **Status**: 🔵 Defined
@@ -56,6 +66,62 @@ Goals are **append-only, structure-preserving ledger entries**.
 - {Deterministic acceptance criterion 2}
 **Constraints**:
 - {Any relevant constraints, dependencies, or non-goals}
+```
+
+### 3b. Workflow Object (`WORKFLOWS.md`)
+**Rules**: A dynamically generated sequence of high-level Stages tailored to the active Goal.
+
+```markdown
+## W-{GoalID}: {Title}
+**Type**: {Feature | Bug Fix | Refactor | Scaffolding}
+**Stages**:
+1. [ ] Stage 1: {Description of logical checkpoint}
+2. [ ] Stage 2: {Description}
+```
+
+### 3c. Task Object (`PLANS.md`)
+**Rules**: Populated via Just-In-Time (JIT) planning. Only tasks for the *currently active Stage* exist here. Every task must be defined using this structure before any code is written.
+
+```markdown
+### T{Phase}.{Step}: {Task Title}
+**Status**: [ ] Pending | [/] In Progress | [x] Completed
+**Depends On**: [List of preceding Task IDs, e.g., T1.1]
+**Target Files**: 
+- `path/to/file.ext`
+**Verification Gate**: {Automated | Runtime | Structural}
+**Verification Command**: `{exact command to run}`
+**Execution Steps**:
+- {Specific action 1}
+- {Specific action 2}
+```
+
+### 3d. Verification Record (`VERIFICATIONS.md`)
+**Rules**: Before marking a task `[x]`, you MUST append a record here proving it passed its gate.
+
+```markdown
+### V-{TaskID}: {Verification Title}
+**Timestamp**: {YYYY-MM-DD HH:MM:SS}
+**Gate Type**: {Automated | Runtime | Structural | Manual}
+**Command Run**: `{The exact command executed}`
+**Output Transcript**:
+```text
+(Paste the trailing ~15 lines of the successful test/build output here)
+```
+**Status**: ✅ Passed
+```
+
+### 3e. ADR Object (`DECISIONS.md`)
+**Rules**: Any design choice, new dependency, or pattern deviation MUST be logged here.
+
+```markdown
+### ADR-{N}: {Decision Title}
+**Status**: 🔵 Proposed | ✅ Accepted | ❌ Rejected
+**Context**: {Brief description of the problem}
+**Options Considered**:
+1. {Option A} — Pros: ..., Cons: ...
+2. {Option B} — Pros: ..., Cons: ...
+**Decision**: {The chosen option}
+**Consequences**: {Impact on the system}
 ```
 
 ## 4. Context Scoping & Delegation
@@ -69,18 +135,19 @@ Managing context is critical for long-running loops across complex goals.
   - Subagent reports results back; parent validates and updates state.
 - **Context Hygiene**: If the context window is nearing saturation, summarize completed work in `CHANGELOG.md` and offload details before continuing.
 
-## 5. Verification Gates
+## 5. Verification Policy
 
-Before marking any plan task `[x]`, the agent MUST pass at least one verification gate:
+Before marking any plan task `[x]`, the agent MUST pass a verification gate and log it to `VERIFICATIONS.md`:
 
 | Gate Type | When to Use | Examples |
 |:---|:---|:---|
 | **Automated** | Code changes with existing test infrastructure | Unit tests, linters, type checks, build commands |
 | **Runtime** | UI, API, or CLI deliverables | Browser preview, curl validation, CLI output checks |
 | **Structural** | File/config changes without runnable tests | File existence checks, schema validation, content grep |
-| **Manual Fallback** | No automated gate is feasible | Document what was verified and how in `CHANGELOG.md` |
+| **Manual Fallback** | No automated gate is feasible | Document exactly what was manually verified and how |
 
-> **Hard Rule**: Never mark a task `[x]` without documenting what verification was performed. "I wrote the code" is not verification.
+> **Hard Rule**: Never mark a task `[x]` without documenting the verification record. "I wrote the code" is not verification.
+
 
 ## 6. Quality Thresholds
 
@@ -98,9 +165,12 @@ Failures during execution are handled by category:
 | Failure Type | Response | Max Attempts |
 |:---|:---|:---|
 | **Transient** (network, rate limits, timeout) | Retry with exponential backoff | 3 |
-| **Logic** (test failure, build error, type error) | Self-diagnose → fix → re-verify | 3 per task |
+| **Logic** (test failure, build error, type error) | Self-diagnose → fix → re-verify. If all attempts fail, trigger Rule Relaxation (see below) before running `git reset --hard` and blocking. | 3 per task |
 | **Ambiguity** (unclear requirements, missing specs) | Mark goal `🔴 Blocked`, document the blocker in `GOALS.md`, request user input | 1 (then wait) |
 | **Destructive** (data loss risk, irreversible operation) | Log intent to `DECISIONS.md`, request user confirmation before proceeding | 1 (then wait) |
+
+### 7a. Dynamic Rule Relaxation (The "Frustration" Metric)
+If the agent fails verification 3 times for a strict rule (e.g., a rigid linter or type-checker blocking core logic progress), the agent is permitted to temporarily amend `.loop/LOOP.md` to append an explicit exception (e.g., `Exception: Ignore TS-Lint for Task 3.2`) to maintain forward momentum. This MUST be logged in `DECISIONS.md`.
 
 > **Never silently skip a failing task.** Either fix it, escalate it, or block the goal.
 
@@ -109,6 +179,7 @@ Failures during execution are handled by category:
 Hard limits to prevent runaway loops and scope creep:
 
 - **Max Iterations Per Goal**: 30 task-level iterations. If a goal cannot be completed within this budget, mark it `🔴 Blocked` and report to the user.
+- **Mandatory Checkpointing (Git)**: Before modifying any files for a task, the agent MUST checkpoint the workspace by running `git add .` and `git commit -m "LoopOS Checkpoint: Pre-{TaskID}"`.
 - **Mandatory Pause**: Before any destructive operation (database migration, bulk file deletion, production deployment), log the intent to `DECISIONS.md` and pause for user confirmation.
 - **No Scope Creep**: If a task reveals work beyond the current goal, log it as a **new goal candidate** in `GOALS.md` with status `🔵 Defined`. Do not execute it in the current loop iteration.
 - **Single Responsibility**: Each plan task should be completable in one focused execution step. If a task grows complex, decompose it into sub-tasks in `PLANS.md`.
@@ -126,10 +197,15 @@ When multiple goals exist in `GOALS.md`:
 
 When all goals in `GOALS.md` reach `✅ Complete`:
 
-1. **Audit**: Verify every task in `PLANS.md` is marked `[x]`.
+1. **Audit**: Verify every Stage in `WORKFLOWS.md` is marked `[x]`.
 2. **Changelog**: Write a final summary entry to `CHANGELOG.md` covering all deliverables.
 3. **Learnings**: Capture any final codebase insights in `LEARNINGS.md`.
 4. **Report**: Declare the loop complete to the user with a concise summary of:
    - Goals achieved
    - Key decisions made
    - Any deferred goals (status `🔵 Defined`) that remain for future loops
+
+## 11. Capability Registry
+
+To execute proprietary or highly specialized workflows natively, users can place markdown files in `.loop/capabilities/` (e.g., `database-tools.md`, `deploy-scripts.md`).
+During the Reconnaissance phase, the agent MUST read all files in this directory to load its permitted capabilities. This acts as a native dependency injection for agent tooling.

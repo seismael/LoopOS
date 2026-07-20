@@ -26,7 +26,7 @@ if (!fs.existsSync(skillsTargetDir)) {
 fs.copyFileSync(path.join(skillsSourceDir, "SKILL.md"), path.join(skillsTargetDir, "SKILL.md"));
 console.log("✔ Successfully installed LoopOS into Gemini.");
 
-// 2. Install to Claude / OpenCode Config
+// 2. Install to Claude Config
 const claudeConfigPath = path.join(homedir, ".claude", "CLAUDE.md");
 const skillContent = fs.readFileSync(path.join(skillsSourceDir, "SKILL.md"), "utf8");
 
@@ -44,11 +44,29 @@ if (!fs.existsSync(claudeConfigPath)) {
 let claudeContent = fs.readFileSync(claudeConfigPath, "utf8");
 if (!claudeContent.includes("NATIVE /loop PROTOCOL")) {
   fs.appendFileSync(claudeConfigPath, claudeHeader + skillBody);
-  console.log("✅ Successfully injected /loop protocol into CLAUDE.md (Claude & OpenCode).");
+  console.log("✅ Successfully injected /loop protocol into CLAUDE.md (Claude).");
 } else {
   const beforeLoop = claudeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
   fs.writeFileSync(claudeConfigPath, beforeLoop + claudeHeader + skillBody);
   console.log("✅ Successfully updated /loop protocol in CLAUDE.md.");
+}
+
+// 3. Install to OpenCode (Gemini) Global Rules
+const opencodeConfigPath = path.join(homedir, ".gemini", "config", "AGENTS.md");
+if (!fs.existsSync(path.dirname(opencodeConfigPath))) {
+  fs.mkdirSync(path.dirname(opencodeConfigPath), { recursive: true });
+}
+if (!fs.existsSync(opencodeConfigPath)) {
+  fs.writeFileSync(opencodeConfigPath, "");
+}
+let opencodeContent = fs.readFileSync(opencodeConfigPath, "utf8");
+if (!opencodeContent.includes("NATIVE /loop PROTOCOL")) {
+  fs.appendFileSync(opencodeConfigPath, claudeHeader + skillBody);
+  console.log("✅ Successfully injected /loop protocol into AGENTS.md (OpenCode).");
+} else {
+  const beforeLoop = opencodeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
+  fs.writeFileSync(opencodeConfigPath, beforeLoop + claudeHeader + skillBody);
+  console.log("✅ Successfully updated /loop protocol in AGENTS.md.");
 }
 
 

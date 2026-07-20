@@ -3,24 +3,21 @@
 ![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 
-**LoopOS** is a deterministic, natively-integrated agentic kernel designed to empower AI coding assistants (like Gemini, Claude, and OpenCode) to operate autonomously in multi-step execution loops. By discarding traditional, heavy Node.js or Python backend servers in favor of a 100% native prompt-driven architecture, LoopOS operates identically to an operating system kernel for agent workflows.
+**LoopOS** is a lightweight plugin that gives your AI coding assistant (like Gemini or Claude) the ability to execute autonomous, multi-step tasks. 
 
-## The Concept
-
-Modeled after the "Ralph" concept of autonomous agent loops, LoopOS utilizes pure Markdown and native agent tool capabilities to track state, manage checkpoints, and complete long-running software engineering tasks without losing context or requiring an external daemon.
-
-When you invoke the `/loop` command, the agent uses `.loop/` state files (`GOALS.md`, `PLANS.md`, `CHANGELOG.md`) as its operational memory, continuously picking up the next uncompleted task until the entire pipeline is achieved.
+Instead of relying on heavy background servers or complex proxy scripts, LoopOS uses plain text Markdown files to give your agent a "memory" and a "to-do list", allowing it to work continuously until a goal is achieved.
 
 ## Features
 
-- **100% Native Architecture:** No daemons, no background servers, no MCP middleware. Just pure agentic capability running on the VFS.
-- **Universal CLI Support:** Supports Gemini CLI, Claude CLI, and OpenCode CLI natively.
-- **Transparent State Management:** The entire state of the execution loop is visible in human-readable Markdown. Watch the agent check off boxes `[x]` in real-time.
-- **Self-Healing Context:** Learns from mistakes natively by appending design insights to `DECISIONS.md` and codebase gotchas to `LEARNINGS.md`.
+- **No Servers Required:** LoopOS is 100% native. It uses your agent's built-in file reading and terminal capabilities to orchestrate its workflow.
+- **Smart Pipelines:** The agent automatically breaks large goals into logical stages (e.g. Design -> Build -> Test) so it doesn't get overwhelmed.
+- **Transparent State:** The entire execution loop is visible in human-readable Markdown. Watch the agent check off boxes `[x]` in real-time.
+- **Built-in Best Practices:** Out of the box, the agent is instructed to write tests, verify its work, and avoid breaking your existing codebase.
+- **Self-Healing:** Learns from mistakes natively by appending design insights to `DECISIONS.md` and codebase gotchas to `LEARNINGS.md`.
 
 ## Installation
 
-To install the LoopOS native plugin globally across your local agent environment:
+To install LoopOS globally across your local agent environment:
 
 1. Clone the repository:
    ```bash
@@ -32,35 +29,31 @@ To install the LoopOS native plugin globally across your local agent environment
    node install.js
    ```
 
-This will automatically inject the `/loop` Native Agent Protocol into your global Agent contexts (Gemini plugins, Claude, and OpenCode `CLAUDE.md`).
+This injects the `/loop` command into your global Agent contexts (Gemini, Claude, and OpenCode).
 
 ## Usage
 
-Navigate to any project directory where you want to start autonomous execution, and trigger your agent:
+Navigate to any project directory where you want your agent to build a feature or fix a bug, and type:
 
 ```bash
 > @agent "Use /loop to build a new task manager application."
 ```
 
-The agent will scaffold the `.loop` directory, present a goal, write an execution checklist, and autonomously begin fulfilling the task.
+The agent will automatically create a `.loop/` directory, map out a goal, write an execution checklist, and autonomously begin fulfilling the task.
 
-## Repository Structure
+### How it Works
 
-- `plugin.json`: Metadata for the Gemini plugin interface.
-- `skills/loop/SKILL.md`: The core LoopOS kernel prompt instructions — the 6-step protocol (Bootstrap → Scope → Execute → Verify → Goal Complete → Finalize).
-- `AGENTS.md`: Mandatory architectural boundaries and native loop behavior directives.
-- `LOOP.md`: The **Autonomous Execution Manifest** — the definitive contract governing pipeline phases, state protocol, verification gates, quality thresholds, error handling, guardrails, and multi-goal orchestration.
-- `install.js`: The universal installer script.
-- `.loop/` (per-project, created at runtime):
-  - `GOALS.md` — Immutable-structure goal ledger
-  - `PLANS.md` — Execution checklist with task progression
-  - `CHANGELOG.md` — Chronological delivery record
-  - `DECISIONS.md` — Architectural decision records
-  - `LEARNINGS.md` — Codebase gotchas and discovered patterns
+LoopOS creates a hidden `.loop/` folder in your project. This acts as the agent's brain for the current session:
+
+- `GOALS.md` — What we are trying to achieve.
+- `WORKFLOWS.md` — The high-level stages of the project.
+- `PLANS.md` — The granular to-do list for the current stage.
+- `CHANGELOG.md` — A record of what was successfully completed.
+
+If you want to enforce specific rules for your team (like "Always use TailwindCSS"), you can create an optional `LOOP.md` file in the root of your project, and the agent will obey it.
 
 ## Contributing
-See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute to the core LoopOS protocol.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to contribute.
 
 ## License
 This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
-

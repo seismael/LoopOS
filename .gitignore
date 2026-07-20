@@ -15,6 +15,5 @@ desktop.ini
 *.swp
 *.swo
 
-# Temporary Files
-.loop/locks/
-
+# Loop Files
+.loop
