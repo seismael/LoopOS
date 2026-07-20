@@ -1,0 +1,10 @@
+{
+  "name": "loop",
+  "description": "LoopOS: Native Autonomous Agent Loop orchestration",
+  "version": "1.0.0",
+  "skills": [
+    {
+      "name": "loop"
+    }
+  ]
+}
