@@ -41,7 +41,7 @@ Before formulating any goal, understand what you're working with:
 3. **Read existing patterns**: If source code exists, read key files to understand naming conventions, architectural patterns (MVC, component-based, etc.), and code style. This prevents introducing conflicting patterns.
 4. **Read `AGENTS.md`**: If present, ingest all architectural boundaries, coding standards, and behavioral constraints. These are non-negotiable.
 5. **Check for prior learnings**: If `.loop/LEARNINGS.md` has entries from prior goals, read them. These inform your approach.
-6. **Load Capabilities**: Check `.loop/capabilities/` for any markdown tool registries. Ingest permitted commands for specialized workflows.
+6. **Load Capabilities & Passive Auto-Discovery**: Read `.loop/capabilities/` for any custom tool registries. Inspect project manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, `Makefile`, etc.) to auto-detect test runners and build tools, logging findings to `.loop/capabilities/detected.md`.
 
 > **Brownfield vs. Greenfield**: If the workspace has existing code, you are in brownfield mode — respect existing patterns, don't reinvent. If the workspace is empty, you are in greenfield mode — establish patterns deliberately and document them in `DECISIONS.md`.
 
@@ -109,11 +109,12 @@ Goals in `.loop/GOALS.md` are **append-only, structure-preserving ledger entries
 
 This is the core loop. Execute with precision and discipline.
 
-#### 4a. Pre-Execution Setup
+#### 4a. Pre-Execution Setup & Goal Alignment
 
 1. Read `LOOP.md` for execution parameters, pipeline configuration, and guardrails.
 2. Read `AGENTS.md` for coding style, architectural boundaries, and project-specific rules.
-3. Transition the current goal's status to `🟡 In Progress` (mutate ONLY the status line).
+3. **Goal Alignment Gate**: Perform a pre-flight audit against `DECISIONS.md` (existing ADRs) and `AGENTS.md`. If the active goal conflicts with prior architectural decisions or non-negotiable boundaries, log an ADR proposal in `DECISIONS.md` and request user resolution before proceeding.
+4. If aligned, transition the current goal's status to `🟡 In Progress` (mutate ONLY the status line).
 
 #### 4b. Task Execution Cycle (JIT Stage Loop)
 
@@ -134,7 +135,7 @@ WHILE uncompleted Stages exist in WORKFLOWS.md:
     9. PROVE      → Append output to VERIFICATIONS.md.
     10. DONE      → Mark task [x] in PLANS.md and log deliverable in CHANGELOG.md.
 
-  11. STAGE DONE → Mark the Stage [x] in WORKFLOWS.md. (Loop restarts for next Stage).
+  11. STAGE DONE → Mark the Stage [x] in WORKFLOWS.md. Move completed stage tasks from `PLANS.md` into `.loop/archive/PLANS.md` (Clean VFS Archival). Loop restarts for next Stage.
 ```
 
 #### 4c. Adaptive Execution Intelligence
@@ -182,7 +183,7 @@ When verification fails:
 3. **Re-verify**: Run the same verification gate again. The fix must pass the same gate that originally failed.
 4. **Escalate if stuck**: If 3 fix attempts fail for the same task, do NOT continue patching. Instead:
    - **Evaluate Frustration**: Is the failure due to a strict rule (like a linter) blocking core logic? If yes, append a temporary exception to `.loop/LOOP.md` and log it in `DECISIONS.md` to maintain momentum.
-   - If not a strict rule constraint, run `git reset --hard` to rollback the workspace to the pristine checkpoint.
+   - If not a strict rule constraint, perform a **Safe Surgical Rollback**: Log the revert intent in `DECISIONS.md` and propose `git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}` via `run_command` (relying on host native UI permission approval).
    - Record the failure in `LEARNINGS.md`.
    - Mark the goal as `🔴 Blocked` with a description of the failure.
    - Request user input.

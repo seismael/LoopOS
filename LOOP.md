@@ -13,14 +13,16 @@
 
 The execution pipeline is a strict state machine. You must not transition to the next phase until all Exit Criteria of the current phase are met.
 
-### Phase 1: Intent Scoping
-**Objective**: Translate intent into a deterministic Goal.
+### Phase 1: Intent Scoping & Alignment
+**Objective**: Translate intent into a deterministic Goal and audit alignment.
 **Entry Criteria**: New Goal required.
-**Exit Criteria**: `GOALS.md` contains deterministic "Done When" criteria with status `🔵 Defined`.
+**Exit Criteria**: 
+- `GOALS.md` contains deterministic "Done When" criteria with status `🔵 Defined`.
+- **Goal Alignment Gate**: Pre-flight audit verified against `DECISIONS.md` (ADRs) and `AGENTS.md`. Any conflicts logged to `DECISIONS.md` before transitioning goal to `🟡 In Progress`.
 
 ### Phase 2: Workflow Orchestration
 **Objective**: Dynamically design the high-level pipeline for the goal.
-**Entry Criteria**: Goal is `🔵 Defined`.
+**Entry Criteria**: Goal is `🔵 Defined` and aligned.
 **Exit Criteria**: `WORKFLOWS.md` contains an ordered list of Stages required to complete the Goal.
 
 ### Phase 3: Stage Execution (JIT Planning & Loop)
@@ -29,7 +31,8 @@ The execution pipeline is a strict state machine. You must not transition to the
 **Exit Criteria**: 
 - `PLANS.md` tasks for the current Stage are all `[x]`.
 - Every `[x]` task has a verification record in `VERIFICATIONS.md`.
-- Current Stage in `WORKFLOWS.md` is marked `[x]`. (Loop repeats for next Stage).
+- Current Stage in `WORKFLOWS.md` is marked `[x]`.
+- **Clean VFS Archival**: Completed stage tasks are moved from `PLANS.md` into `.loop/archive/PLANS.md`. (Loop repeats for next Stage).
 
 ### Phase 4: Finalization
 **Objective**: Clean up and report.
@@ -43,7 +46,7 @@ The execution pipeline is a strict state machine. You must not transition to the
 
 The `.loop/` directory is the single source of truth. Each file has a strict purpose and format.
 
-| File | Role | Mutation Rules |
+| File / Path | Role | Mutation Rules |
 |:---|:---|:---|
 | `GOALS.md` | **Goal Ledger** | Status-only field mutations. Never rewrite goal bodies. |
 | `WORKFLOWS.md` | **Workflow Ledger** | Contains ordered Stages for active Goals. |
@@ -52,8 +55,9 @@ The `.loop/` directory is the single source of truth. Each file has a strict pur
 | `CHANGELOG.md` | **Delivery Record** | Append-only log of milestones. |
 | `DECISIONS.md` | **Decision Records** | Append-only. Contains Structured ADR Objects. |
 | `LEARNINGS.md` | **Gotchas & Patterns** | Append-only insights. |
+| `archive/` | **VFS Archival** | Stores archived ledger snapshots (`PLANS.md`, `CHANGELOG.md`). |
 | `LOOP.md` | **Runtime Config** | Immutable during a loop (unless Rule Relaxation triggered). |
-| `capabilities/`| **Tool Registry** | Markdown files detailing permitted native tools and commands. |
+| `capabilities/`| **Tool Registry** | Markdown tool capabilities & auto-detected environment commands (`detected.md`). |
 
 ### 3a. Goal Object (`GOALS.md`)
 **Rules**: Append-only, structure-preserving. Status transitions: `🔵 Defined` → `🟡 In Progress` → `✅ Complete` (or `🔴 Blocked`).
@@ -165,9 +169,9 @@ Failures during execution are handled by category:
 | Failure Type | Response | Max Attempts |
 |:---|:---|:---|
 | **Transient** (network, rate limits, timeout) | Retry with exponential backoff | 3 |
-| **Logic** (test failure, build error, type error) | Self-diagnose → fix → re-verify. If all attempts fail, trigger Rule Relaxation (see below) before running `git reset --hard` and blocking. | 3 per task |
+| **Logic** (test failure, build error, type error) | Self-diagnose → fix → re-verify. If 3 attempts fail, trigger Rule Relaxation or log intent to `DECISIONS.md` and propose a **Surgical Rollback** (`git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}`) via native `run_command`. | 3 per task |
 | **Ambiguity** (unclear requirements, missing specs) | Mark goal `🔴 Blocked`, document the blocker in `GOALS.md`, request user input | 1 (then wait) |
-| **Destructive** (data loss risk, irreversible operation) | Log intent to `DECISIONS.md`, request user confirmation before proceeding | 1 (then wait) |
+| **Destructive** (data loss risk, irreversible operation) | Log intent to `DECISIONS.md`, defer to native host UI permission prompts | 1 (then wait) |
 
 ### 7a. Dynamic Rule Relaxation (The "Frustration" Metric)
 If the agent fails verification 3 times for a strict rule (e.g., a rigid linter or type-checker blocking core logic progress), the agent is permitted to temporarily amend `.loop/LOOP.md` to append an explicit exception (e.g., `Exception: Ignore TS-Lint for Task 3.2`) to maintain forward momentum. This MUST be logged in `DECISIONS.md`.
@@ -180,7 +184,8 @@ Hard limits to prevent runaway loops and scope creep:
 
 - **Max Iterations Per Goal**: 30 task-level iterations. If a goal cannot be completed within this budget, mark it `🔴 Blocked` and report to the user.
 - **Mandatory Checkpointing (Git)**: Before modifying any files for a task, the agent MUST checkpoint the workspace by running `git add .` and `git commit -m "LoopOS Checkpoint: Pre-{TaskID}"`.
-- **Mandatory Pause**: Before any destructive operation (database migration, bulk file deletion, production deployment), log the intent to `DECISIONS.md` and pause for user confirmation.
+- **Safe Surgical Rollback**: Never run global `git reset --hard`. If a task fails all fix attempts, log the rollback intent in `DECISIONS.md` and revert ONLY the failing task's target files using `git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}` via `run_command` (relying on host native approval).
+- **Native Host Approvals**: Do not invent parallel approval CLI scripts or prompt hacks. All tool permissions and approvals defer 100% to the host agent's native UI permission prompts. Log intent to `DECISIONS.md` prior to executing sensitive commands.
 - **No Scope Creep**: If a task reveals work beyond the current goal, log it as a **new goal candidate** in `GOALS.md` with status `🔵 Defined`. Do not execute it in the current loop iteration.
 - **Single Responsibility**: Each plan task should be completable in one focused execution step. If a task grows complex, decompose it into sub-tasks in `PLANS.md`.
 
