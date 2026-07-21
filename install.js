@@ -1,74 +1,94 @@
+#!/usr/bin/env node
+/**
+ * LoopOS Universal Native Agent Plugin Installer
+ * 
+ * Supports: Windows (PowerShell/CMD), macOS (Zsh/Bash), Linux, WSL, FreeBSD
+ * Zero External Dependencies — 100% Native Node.js
+ */
+
 const fs = require("fs");
 const path = require("path");
 const os = require("os");
 
-const homedir = os.homedir();
-const sourceDir = __dirname;
-
-// 1. Install to Gemini Config
-const targetDir = path.join(homedir, ".gemini", "config", "plugins", "loop-os");
-
 console.log("--- Installing LoopOS Native Agent Plugin ---");
 
-if (!fs.existsSync(targetDir)) {
-  fs.mkdirSync(targetDir, { recursive: true });
+// 1. Cross-Platform Home & XDG Directory Resolver
+function resolveHomeDir() {
+  return process.env.XDG_CONFIG_HOME || process.env.HOME || os.homedir();
 }
 
-fs.copyFileSync(path.join(sourceDir, "plugin.json"), path.join(targetDir, "plugin.json"));
+// 2. Line-Ending Normalization (CRLF -> LF)
+function normalizeLF(str) {
+  return str ? str.replace(/\r\n/g, "\n") : "";
+}
 
+// 3. Extract SKILL.md Body (Stripping YAML Frontmatter)
+const sourceDir = __dirname;
 const skillsSourceDir = path.join(sourceDir, "skills", "loop");
-const skillsTargetDir = path.join(targetDir, "skills", "loop");
+const skillPath = path.join(skillsSourceDir, "SKILL.md");
 
-if (!fs.existsSync(skillsTargetDir)) {
-  fs.mkdirSync(skillsTargetDir, { recursive: true });
+if (!fs.existsSync(skillPath)) {
+  console.error("❌ Error: SKILL.md not found at expected path:", skillPath);
+  process.exit(1);
 }
 
-fs.copyFileSync(path.join(skillsSourceDir, "SKILL.md"), path.join(skillsTargetDir, "SKILL.md"));
-console.log("✔ Successfully installed LoopOS into Gemini.");
+const rawSkillContent = normalizeLF(fs.readFileSync(skillPath, "utf8"));
+let skillBody = rawSkillContent;
 
-// 2. Install to Claude Config
+if (rawSkillContent.startsWith("---")) {
+  const secondIndex = rawSkillContent.indexOf("---", 3);
+  if (secondIndex !== -1) {
+    skillBody = rawSkillContent.substring(secondIndex + 3).trim();
+  }
+}
+
+const homedir = resolveHomeDir();
+const loopHeader = "\n\n## 5. NATIVE /loop PROTOCOL\n";
+
+// 4. Atomic Cross-Platform Protocol Injector
+function injectOrUpdateProtocol(filePath, agentName) {
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  const content = fs.existsSync(filePath) ? normalizeLF(fs.readFileSync(filePath, "utf8")) : "";
+  let updated = "";
+
+  if (!content.includes("NATIVE /loop PROTOCOL")) {
+    updated = content + (content && !content.endsWith("\n") ? "\n" : "") + loopHeader + skillBody + "\n";
+    console.log(`✅ Successfully injected /loop protocol into ${path.basename(filePath)} (${agentName}).`);
+  } else {
+    const beforeLoop = content.split("## 5. NATIVE /loop PROTOCOL")[0].trimEnd();
+    updated = beforeLoop + loopHeader + skillBody + "\n";
+    console.log(`✅ Successfully updated /loop protocol in ${path.basename(filePath)} (${agentName}).`);
+  }
+
+  // Atomic write via temp file to avoid corruption
+  const tmpPath = `${filePath}.tmp`;
+  fs.writeFileSync(tmpPath, updated, "utf8");
+  fs.renameSync(tmpPath, filePath);
+}
+
+// 5. Multi-Agent Installation Matrix
+// A. Gemini Plugin Installation
+const geminiTargetDir = path.join(homedir, ".gemini", "config", "plugins", "loop-os");
+const geminiSkillsDir = path.join(geminiTargetDir, "skills", "loop");
+
+if (!fs.existsSync(geminiSkillsDir)) {
+  fs.mkdirSync(geminiSkillsDir, { recursive: true });
+}
+
+fs.copyFileSync(path.join(sourceDir, "plugin.json"), path.join(geminiTargetDir, "plugin.json"));
+fs.copyFileSync(skillPath, path.join(geminiSkillsDir, "SKILL.md"));
+console.log("✔ Successfully installed LoopOS plugin into Gemini.");
+
+// B. Claude CLI Global Config Injection
 const claudeConfigPath = path.join(homedir, ".claude", "CLAUDE.md");
-const skillContent = fs.readFileSync(path.join(skillsSourceDir, "SKILL.md"), "utf8");
+injectOrUpdateProtocol(claudeConfigPath, "Claude CLI");
 
-// Extract just the markdown body, ignoring the YAML frontmatter
-const skillBody = skillContent.split("---")[2].trim();
-
-const claudeHeader = "\n\n## 5. NATIVE /loop PROTOCOL\n";
-
-if (!fs.existsSync(path.dirname(claudeConfigPath))) {
-  fs.mkdirSync(path.dirname(claudeConfigPath), { recursive: true });
-}
-if (!fs.existsSync(claudeConfigPath)) {
-  fs.writeFileSync(claudeConfigPath, "");
-}
-let claudeContent = fs.readFileSync(claudeConfigPath, "utf8");
-if (!claudeContent.includes("NATIVE /loop PROTOCOL")) {
-  fs.appendFileSync(claudeConfigPath, claudeHeader + skillBody);
-  console.log("✅ Successfully injected /loop protocol into CLAUDE.md (Claude).");
-} else {
-  const beforeLoop = claudeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
-  fs.writeFileSync(claudeConfigPath, beforeLoop + claudeHeader + skillBody);
-  console.log("✅ Successfully updated /loop protocol in CLAUDE.md.");
-}
-
-// 3. Install to OpenCode (Gemini) Global Rules
+// C. OpenCode CLI Global Config Injection
 const opencodeConfigPath = path.join(homedir, ".gemini", "config", "AGENTS.md");
-if (!fs.existsSync(path.dirname(opencodeConfigPath))) {
-  fs.mkdirSync(path.dirname(opencodeConfigPath), { recursive: true });
-}
-if (!fs.existsSync(opencodeConfigPath)) {
-  fs.writeFileSync(opencodeConfigPath, "");
-}
-let opencodeContent = fs.readFileSync(opencodeConfigPath, "utf8");
-if (!opencodeContent.includes("NATIVE /loop PROTOCOL")) {
-  fs.appendFileSync(opencodeConfigPath, claudeHeader + skillBody);
-  console.log("✅ Successfully injected /loop protocol into AGENTS.md (OpenCode).");
-} else {
-  const beforeLoop = opencodeContent.split("## 5. NATIVE /loop PROTOCOL")[0];
-  fs.writeFileSync(opencodeConfigPath, beforeLoop + claudeHeader + skillBody);
-  console.log("✅ Successfully updated /loop protocol in AGENTS.md.");
-}
+injectOrUpdateProtocol(opencodeConfigPath, "OpenCode CLI");
 
-
-console.log("Installation Complete! You can now use `/loop` across all agents.");
-
+console.log("\nInstallation Complete! LoopOS is active across all agents and ready to run `/loop`.");

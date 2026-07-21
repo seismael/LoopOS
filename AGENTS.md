@@ -16,12 +16,12 @@ LoopOS is a purely native agent plugin that drives multi-step autonomous enginee
 ## 2. NATIVE LOOP BEHAVIOR
 
 - **No External Services:** LoopOS relies solely on native agent capabilities.
-- **Workflow & Task Execution:** When operating LoopOS, verify the Goal Alignment Gate against `DECISIONS.md` and `AGENTS.md` before starting. Pick the first uncompleted `[ ]` Stage in `WORKFLOWS.md`, perform JIT file reconnaissance, synthesize granular tasks into `PLANS.md`, execute natively, and move completed stage tasks into `.loop/archive/PLANS.md`.
-- **Verification Before Completion:** Every task must pass a verification gate (automated test, runtime check, or documented manual verification) before being marked `[x]`. See `LOOP.md` §5 (Verification Gates) for gate types.
-- **Goal Immutability:** Goals in `GOALS.md` are structure-preserving ledger entries. When completing a goal, mutate ONLY the `**Status**:` line. Never collapse, truncate, or rewrite the goal body. See `LOOP.md` §3 (Goal Lifecycle).
-- **Guardrails & Surgical Rollbacks:** Respect limits in `LOOP.md` §8. Never run `git reset --hard` globally; log intent in `DECISIONS.md` and use targeted `git checkout Pre-{TaskID} -- {TargetFiles}` via native `run_command` (relying on host native approval).
-- **Quality Bar:** All deliverables must meet the quality thresholds in `LOOP.md` §6 — no placeholders, proper documentation, pattern conformance.
-- **Continuous Execution:** Do not stop execution until the entire `WORKFLOWS.md` is completed unless you encounter a blocking issue requiring user feedback.
+- **Workflow & Task Execution:** When operating LoopOS, verify the Goal Alignment Gate against `DECISIONS.md` and `AGENTS.md`. Pick the first uncompleted `[ ]` Stage in `WORKFLOWS.md`, record stage file bounds in `.loop/CONTEXT_MAP.md` (Max 10 target files), synthesize tasks into `PLANS.md`, execute natively, and move completed stage tasks into `.loop/archive/PLANS.md`.
+- **Verification & Cross-Goal Regression:** Every task must pass a verification gate before being marked `[x]`. Before completing a goal, run a **Cross-Goal Regression Sweep** executing all distinct verification commands from `VERIFICATIONS.md`.
+- **Goal Immutability & Topological Order:** Goals in `GOALS.md` are structure-preserving entries with topological dependency resolution (`**Depends On**:`). When completing a goal, mutate ONLY the `**Status**:` line.
+- **Guardrails & Adaptive Pivoting:** Respect limits in `LOOP.md` §8. On 2nd verification failure for a task, write a 1-sentence Alternative Hypothesis in `DECISIONS.md`. Never run `git reset --hard` globally; use targeted `git checkout Pre-{TaskID} -- {TargetFiles}` via `run_command`.
+- **Quality Bar & Pattern Consolidation:** All deliverables must meet quality thresholds in `LOOP.md` §6. During finalization, consolidate `LEARNINGS.md` into reusable codebase standards in `.loop/PATTERNS.md`.
+- **Continuous Execution:** Do not stop execution until all goals in `GOALS.md` reach `✅ Complete` unless blocked by user feedback.
 
 ---
 

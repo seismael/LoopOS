@@ -48,13 +48,15 @@ The `.loop/` directory is the single source of truth. Each file has a strict pur
 
 | File / Path | Role | Mutation Rules |
 |:---|:---|:---|
-| `GOALS.md` | **Goal Ledger** | Status-only field mutations. Never rewrite goal bodies. |
+| `GOALS.md` | **Goal Ledger** | Status-only field mutations. Never rewrite goal bodies. Supports `**Depends On**:` graph. |
 | `WORKFLOWS.md` | **Workflow Ledger** | Contains ordered Stages for active Goals. |
 | `PLANS.md` | **Execution Checklist** | Contains Structured Task Objects, generated **JIT** per Stage. |
+| `CONTEXT_MAP.md` | **Stage Memory Scope** | Generated JIT per Stage. Contains active Stage target file bounds (Max 10 files). |
 | `VERIFICATIONS.md` | **Verification Ledger** | Append-only. Contains Proof of passing gates. |
 | `CHANGELOG.md` | **Delivery Record** | Append-only log of milestones. |
-| `DECISIONS.md` | **Decision Records** | Append-only. Contains Structured ADR Objects. |
-| `LEARNINGS.md` | **Gotchas & Patterns** | Append-only insights. |
+| `DECISIONS.md` | **Decision Records** | Append-only. Contains Structured ADR Objects and Hypothesis Pivots. |
+| `LEARNINGS.md` | **Gotchas & Insights** | Append-only raw insights. |
+| `PATTERNS.md` | **Design Standards** | Consolidated codebase patterns distilled during finalization. |
 | `archive/` | **VFS Archival** | Stores archived ledger snapshots (`PLANS.md`, `CHANGELOG.md`). |
 | `LOOP.md` | **Runtime Config** | Immutable during a loop (unless Rule Relaxation triggered). |
 | `capabilities/`| **Tool Registry** | Markdown tool capabilities & auto-detected environment commands (`detected.md`). |
@@ -65,6 +67,7 @@ The `.loop/` directory is the single source of truth. Each file has a strict pur
 ```markdown
 ## G{N}: {Title}
 **Status**: 🔵 Defined
+**Depends On**: [] # List of prerequisite Goal IDs (e.g. [G1])
 **Done When**:
 - {Deterministic acceptance criterion 1}
 - {Deterministic acceptance criterion 2}
@@ -169,7 +172,7 @@ Failures during execution are handled by category:
 | Failure Type | Response | Max Attempts |
 |:---|:---|:---|
 | **Transient** (network, rate limits, timeout) | Retry with exponential backoff | 3 |
-| **Logic** (test failure, build error, type error) | Self-diagnose → fix → re-verify. If 3 attempts fail, trigger Rule Relaxation or log intent to `DECISIONS.md` and propose a **Surgical Rollback** (`git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}`) via native `run_command`. | 3 per task |
+| **Logic** (test failure, build error, type error) | **Adaptive Hypothesis Switching**: Attempt 1 applies direct minimal fix. If Attempt 2 fails on the same task, the agent MUST write a 1-sentence **Alternative Hypothesis** in `DECISIONS.md` before touching code. If Attempt 3 fails, perform **Surgical Rollback** (`git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}`) via native `run_command`. | 3 per task |
 | **Ambiguity** (unclear requirements, missing specs) | Mark goal `🔴 Blocked`, document the blocker in `GOALS.md`, request user input | 1 (then wait) |
 | **Destructive** (data loss risk, irreversible operation) | Log intent to `DECISIONS.md`, defer to native host UI permission prompts | 1 (then wait) |
 
@@ -189,25 +192,24 @@ Hard limits to prevent runaway loops and scope creep:
 - **No Scope Creep**: If a task reveals work beyond the current goal, log it as a **new goal candidate** in `GOALS.md` with status `🔵 Defined`. Do not execute it in the current loop iteration.
 - **Single Responsibility**: Each plan task should be completable in one focused execution step. If a task grows complex, decompose it into sub-tasks in `PLANS.md`.
 
-## 9. Multi-Goal Orchestration
+## 9. Multi-Goal Orchestration & Topological Execution
 
 When multiple goals exist in `GOALS.md`:
 
-- **Sequential by Default**: Goals execute in order (G1 → G2 → G3). A new goal is not started until the current goal reaches `✅ Complete`.
-- **Mid-Loop Additions**: New goals added during execution are appended to `GOALS.md` with status `🔵 Defined` and queued after the current goal.
-- **Cross-Goal Dependencies**: If Goal B depends on Goal A, this must be explicitly declared in Goal B's `**Constraints**:` section. The agent must not start Goal B until Goal A is `✅ Complete`.
+- **Topological Order by Default**: Goals execute in topological dependency order resolved from `**Depends On**: [G{N}]`. If Goal B depends on Goal A, Goal B remains queued (`🔵 Defined (Blocked by Goal A)`) until Goal A reaches `✅ Complete`.
+- **Mid-Loop Additions**: New goals added during execution are appended to `GOALS.md` with status `🔵 Defined` and queued based on dependency graph calculation.
 - **Goal Rejection**: If a proposed goal conflicts with existing goals or architectural boundaries, the agent should document the conflict in `DECISIONS.md` and request user resolution.
 
 ## 10. Finalization Protocol
 
 When all goals in `GOALS.md` reach `✅ Complete`:
 
-1. **Audit**: Verify every Stage in `WORKFLOWS.md` is marked `[x]`.
+1. **Audit & Cross-Goal Regression Sweep**: Verify every Stage in `WORKFLOWS.md` is marked `[x]`. Execute a consolidated regression pass by running all distinct verification commands stored in `VERIFICATIONS.md`.
 2. **Changelog**: Write a final summary entry to `CHANGELOG.md` covering all deliverables.
-3. **Learnings**: Capture any final codebase insights in `LEARNINGS.md`.
+3. **Learnings & Pattern Consolidation Pass**: Capture codebase insights in `LEARNINGS.md`, then distill recurring gotchas into reusable design rules in `PATTERNS.md`.
 4. **Report**: Declare the loop complete to the user with a concise summary of:
    - Goals achieved
-   - Key decisions made
+   - Key decisions made & consolidated patterns
    - Any deferred goals (status `🔵 Defined`) that remain for future loops
 
 ## 11. Capability Registry

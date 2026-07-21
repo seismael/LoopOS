@@ -40,7 +40,7 @@ Before formulating any goal, understand what you're working with:
 2. **Detect the tech stack**: Infer languages, frameworks, build tools, and test runners from project files. Record your findings.
 3. **Read existing patterns**: If source code exists, read key files to understand naming conventions, architectural patterns (MVC, component-based, etc.), and code style. This prevents introducing conflicting patterns.
 4. **Read `AGENTS.md`**: If present, ingest all architectural boundaries, coding standards, and behavioral constraints. These are non-negotiable.
-5. **Check for prior learnings**: If `.loop/LEARNINGS.md` has entries from prior goals, read them. These inform your approach.
+5. **Check for prior learnings & patterns**: Read `.loop/LEARNINGS.md` (gotchas) and `.loop/PATTERNS.md` (distilled codebase design standards). Ingest established patterns to prevent introducing architectural drift.
 6. **Load Capabilities & Passive Auto-Discovery**: Read `.loop/capabilities/` for any custom tool registries. Inspect project manifests (`package.json`, `pyproject.toml`, `Cargo.toml`, `Makefile`, etc.) to auto-detect test runners and build tools, logging findings to `.loop/capabilities/detected.md`.
 
 > **Brownfield vs. Greenfield**: If the workspace has existing code, you are in brownfield mode — respect existing patterns, don't reinvent. If the workspace is empty, you are in greenfield mode — establish patterns deliberately and document them in `DECISIONS.md`.
@@ -70,6 +70,7 @@ Write the goal into `.loop/GOALS.md` using the immutable template:
 ```markdown
 ## G{N}: {Title}
 **Status**: 🔵 Defined
+**Depends On**: [] # List of prerequisite Goal IDs (e.g. [G1])
 **Done When**:
 - {Deterministic acceptance criterion 1}
 - {Deterministic acceptance criterion 2}
@@ -122,7 +123,7 @@ Enter the continuous execution loop. This operates on a two-tiered state machine
 
 ```
 WHILE uncompleted Stages exist in WORKFLOWS.md:
-  1. STAGE PLAN → Read the first uncompleted [ ] Stage. Run reconnaissance on required files, then synthesize granular Task Objects into PLANS.md.
+  1. STAGE PLAN → Read the first uncompleted [ ] Stage. Run reconnaissance on required files, synthesize granular Task Objects into PLANS.md, and record active Stage target file bounds in CONTEXT_MAP.md (Max 10 files).
   
   WHILE uncompleted tasks exist in PLANS.md:
     2. READ       → Pick the first uncompleted [ ] task.
@@ -154,6 +155,7 @@ Enterprise codebases are massive. You MUST aggressively manage your context wind
 
 - **Mandate RipGrep**: Do NOT use `cat` or `Get-Content` on massive files or logs. Always use targeted RipGrep (`rg`) or file-viewing tools with line limits.
 - **Aggressive Pagination**: When running shell commands that produce massive output (e.g., `git log`, `npm install`), you MUST limit the output (e.g., `git log -n 5`) or pipe to a bounded file.
+- **Stage-Driven Context Scoping**: Write active stage target file bounds to `.loop/CONTEXT_MAP.md` (Max 10 files per Stage). Bound active prompt context strictly to these target files to preserve memory headroom.
 - **Offload completed work**: After completing a phase, summarize it in `CHANGELOG.md`. You don't need to hold all implementation details in memory — the files themselves are the source of truth.
 - **Subagent delegation**: For isolated tasks exceeding ~200 lines of code or complex test suite runs, spawn a subagent with bounded context. The parent agent retains orchestration and state management — subagents never write to `.loop/` files directly.
 - **Re-read when uncertain**: If you're unsure about a pattern or convention, re-read the relevant source file. Don't guess from memory.
@@ -174,40 +176,41 @@ Choose the most rigorous gate available for the task type:
 | Documentation | Structural (content review) | Manual fallback with documented evidence |
 | Refactoring | Run full test suite (regression check) | Build + lint passes |
 
-#### Self-Correction Protocol
+#### Self-Correction Protocol (Adaptive Hypothesis Switching)
 
 When verification fails:
 
 1. **Diagnose**: Read the error output carefully. Identify the root cause, not just the symptom.
-2. **Fix**: Apply the minimal fix to address the root cause.
-3. **Re-verify**: Run the same verification gate again. The fix must pass the same gate that originally failed.
-4. **Escalate if stuck**: If 3 fix attempts fail for the same task, do NOT continue patching. Instead:
-   - **Evaluate Frustration**: Is the failure due to a strict rule (like a linter) blocking core logic? If yes, append a temporary exception to `.loop/LOOP.md` and log it in `DECISIONS.md` to maintain momentum.
-   - If not a strict rule constraint, perform a **Safe Surgical Rollback**: Log the revert intent in `DECISIONS.md` and propose `git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}` via `run_command` (relying on host native UI permission approval).
+2. **Fix Attempt 1**: Apply the minimal direct fix to address the root cause and re-verify.
+3. **Fix Attempt 2 (Mandatory Pivot)**: If Attempt 1 fails on the same task, you are **forbidden** from applying minor patches to the same lines. You MUST log a 1-sentence **Alternative Hypothesis** in `DECISIONS.md` before writing new code.
+4. **Fix Attempt 3 (Escalate & Rollback)**: If Attempt 2 also fails:
+   - Is the failure due to a strict rule (like a linter) blocking core logic? If yes, append a temporary exception to `.loop/LOOP.md` and log it in `DECISIONS.md`.
+   - Otherwise, perform a **Safe Surgical Rollback**: Log the revert intent in `DECISIONS.md` and propose `git checkout Checkpoint-Pre-{TaskID} -- {TargetFiles}` via `run_command` (relying on host native UI permission approval).
    - Record the failure in `LEARNINGS.md`.
    - Mark the goal as `🔴 Blocked` with a description of the failure.
    - Request user input.
 
 > **Hard Rule**: "I wrote the code" is NOT verification. You must demonstrate the deliverable works.
 
-### 6. Goal Completion
+### 6. Goal Completion & Cross-Goal Regression
 
 When all Stages for the current goal in `WORKFLOWS.md` are `[x]`:
 
 1. **Acceptance audit**: Re-read the goal's "Done When" criteria in `GOALS.md`. Verify each criterion is satisfied. If any criterion is unmet, identify the gap and add a remediation Stage to `WORKFLOWS.md`.
-2. **Status transition**: Transition the goal's status to `✅ Complete` (mutate ONLY the status line — preserve all goal details).
-3. **Changelog entry**: Write a summary entry to `.loop/CHANGELOG.md` covering what was delivered.
-4. **Next goal**: If more goals remain with status `🔵 Defined`, proceed to the next goal (return to Step 3: Goal Formulation for that goal's plan synthesis, then Step 4 for execution).
+2. **Cross-Goal Regression Sweep**: Parse all distinct `Command Run` verification entries from `VERIFICATIONS.md` and execute a consolidated regression test pass via `run_command`. If any test fails, add a remediation stage to `WORKFLOWS.md` before proceeding.
+3. **Status transition**: Transition the goal's status to `✅ Complete` (mutate ONLY the status line — preserve all goal details).
+4. **Changelog entry**: Write a summary entry to `.loop/CHANGELOG.md` covering what was delivered.
+5. **Next goal**: Resolve `**Depends On**:` graph in `GOALS.md`. Pick the next unblocked goal with status `🔵 Defined` and proceed.
 
-### 7. Finalization
+### 7. Finalization Protocol
 
 When ALL goals in `.loop/GOALS.md` reach `✅ Complete`:
 
-1. **Full audit**: Verify every Stage in `WORKFLOWS.md` is `[x]`. Verify every goal's "Done When" criteria are satisfied.
+1. **Full audit & final regression**: Verify every Stage in `WORKFLOWS.md` is `[x]`. Verify every goal's "Done When" criteria are satisfied. Re-run final regression pass from `VERIFICATIONS.md`.
 2. **Final changelog**: Write a comprehensive summary entry to `CHANGELOG.md` covering all goals and deliverables.
-3. **Learnings capture**: Record any final codebase insights, patterns discovered, or recommendations for future work in `LEARNINGS.md`.
+3. **Pattern Consolidation Pass**: Read raw gotchas from `LEARNINGS.md` and distill recurring insights into reusable design rules in `.loop/PATTERNS.md`.
 4. **Report to user**: Declare the loop complete with a concise summary of:
    - Goals achieved (with key deliverables)
-   - Key architectural decisions made
+   - Architectural decisions made & consolidated design patterns (`PATTERNS.md`)
    - Any deferred goals (status `🔵 Defined`) that remain for future loops
    - Recommendations for next steps

@@ -1,0 +1,23 @@
+{
+  "name": "loop-os",
+  "version": "1.0.0",
+  "description": "Native Autonomous Agent Loop Protocol for Gemini, Claude, and OpenCode",
+  "main": "install.js",
+  "bin": {
+    "loopos": "./install.js",
+    "loopos-install": "./install.js"
+  },
+  "scripts": {
+    "install-global": "node install.js"
+  },
+  "keywords": [
+    "loopos",
+    "agent",
+    "autonomous",
+    "gemini",
+    "claude",
+    "opencode",
+    "tdd"
+  ],
+  "license": "MIT"
+}
