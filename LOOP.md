@@ -196,6 +196,7 @@ Hard limits to prevent runaway loops and scope creep:
 
 When multiple goals exist in `GOALS.md`:
 
+- **Continuous Execution**: Once a `/loop` is active, do not stop execution until all goals in `GOALS.md` reach `✅ Complete` unless blocked by user feedback or a `🔴 Blocked` state.
 - **Topological Order by Default**: Goals execute in topological dependency order resolved from `**Depends On**: [G{N}]`. If Goal B depends on Goal A, Goal B remains queued (`🔵 Defined (Blocked by Goal A)`) until Goal A reaches `✅ Complete`.
 - **Mid-Loop Additions**: New goals added during execution are appended to `GOALS.md` with status `🔵 Defined` and queued based on dependency graph calculation.
 - **Goal Rejection**: If a proposed goal conflicts with existing goals or architectural boundaries, the agent should document the conflict in `DECISIONS.md` and request user resolution.
